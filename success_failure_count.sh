@@ -1,0 +1,12 @@
+curl -X POST "localhost:9200/logs-demo/_search?pretty" \
+-H "Content-Type: application/json" \
+-d '{
+  "size": 0,
+  "aggs": {
+    "requests_by_status": {
+      "terms": {
+        "field": "status.keyword"
+      }
+    }
+  }
+}'
