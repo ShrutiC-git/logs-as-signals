@@ -1,19 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"sync/atomic"
 	"time"
-	"bytes"
 )
 
 var failureMode int32 = 0
 
 // Structured logger
-func logJson(data map[string]interface{}){
+func logJson(data map[string]interface{}) {
 	data["@timestamp"] = time.Now().Format(time.RFC3339)
 	bytes, err := json.Marshal(data)
 	if err != nil {
@@ -30,21 +31,27 @@ func sendToOpenSearch(data map[string]interface{}) {
 		log.Printf("Error marshaling log data: %v", err)
 		return
 	}
-	http.Post(
-		"http://localhost:9200/logs/_doc",
+	resp, error := http.Post(
+		"http://localhost:9200/logs-demo/_doc",
 		"application/json",
 		bytes.NewBuffer(jsonData),
 	)
+	if error != nil {
+		log.Printf("Failed to send to OpenSearch: %v", error)
+		return
+	}
+
+	defer resp.Body.Close()
 }
 
 // Dependency simulator
 func callExternalService() (string, int) {
-	retries := 0 
+	retries := 0
 
 	if atomic.LoadInt32(&failureMode) == 1 {
 		// simulate retries and delay
 		for retries < 2 {
-			time.Sleep(1*time.Second)
+			time.Sleep(1 * time.Second)
 			retries++
 		}
 		return "Service Unavailable", retries
@@ -70,7 +77,13 @@ func toggleFailuremode(w http.ResponseWriter, r *http.Request) {
 
 	logJson(map[string]interface{}{
 		"service": "checkout",
-		"event": "toggle_failure",
+		"event":   "toggle_failure",
+		"enabled": newval == 1,
+	})
+
+	sendToOpenSearch(map[string]interface{}{
+		"service": "checkout",
+		"event":   "toggle_failure",
 		"enabled": newval == 1,
 	})
 
@@ -84,20 +97,30 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 // Checkout Handler
 func checkoutHandler(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
+	start := time.Now()
 
-		errorType, retries := callExternalService()
+	errorType, retries := callExternalService()
 
-		latency := time.Since(start).Milliseconds()
+	latency := time.Since(start).Milliseconds()
 
-		logJson(map[string]interface{}{
-			"service": "checkout",
-			"endpoint": "/checkout",
-			"latency_ms": latency,
-			"error": errorType,
-			"retry-count": retries,
-			"status": getStatus(errorType),
-		})
+	data := map[string]interface{}{
+		"service":     "checkout",
+		"endpoint":    "/checkout",
+		"latency_ms":  latency,
+		"error":       errorType,
+		"retry_count": retries,
+		"status":      getStatus(errorType),
+	}
+
+	logJson(data)
+	sendToOpenSearch(data)
+
+	if errorType != "" {
+		http.Error(w, "dependency failure", http.StatusServiceUnavailable)
+		return
+	}
+
+	w.Write([]byte("checkout success"))
 }
 
 func main() {
@@ -105,8 +128,15 @@ func main() {
 	http.HandleFunc("/toggle-failure", toggleFailuremode)
 	http.HandleFunc("/health", healthHandler)
 
+	http.HandleFunc("/alert", func(w http.ResponseWriter, r *http.Request) {
+		log.Println("🚨 ALERT RECEIVED")
 
-	log.Println("Starting server on :8080")	
+		body, _ := io.ReadAll(r.Body)
+		log.Println(string(body))
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	log.Println("Starting server on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
-
