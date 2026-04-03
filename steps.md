@@ -7,7 +7,7 @@
   "query": {
     "range": {
       "@timestamp": {
-        "gte": "now-5m"
+        "gte": "now-1m"
       }
     }
   },
@@ -15,6 +15,16 @@
     "status": {
       "terms": {
         "field": "status"
+      }
+    },
+    "endpoint": {
+      "terms": {
+        "field": "endpoint"
+      }
+    },
+    "errors": {
+      "terms": {
+        "field": "error"
       }
     }
   }
@@ -37,5 +47,30 @@ return total > 0 && (failures / total) > 0.2;
 ```
 
 #### Channel:
- Custom Webhook
+ Custom Webhook: http://host.docker.internal:8080/alert
+
+#### Adding Context to the Alert: 
+```
+🚨 Error Spike Detected
+
+Service: {{ctx.monitor.name}}
+
+Status Breakdown:
+{{#ctx.results.0.aggregations.status.buckets}}
+- {{key}} : {{doc_count}}
+{{/ctx.results.0.aggregations.status.buckets}}
+
+Endpoint:
+{{#ctx.results.0.aggregations.endpoint.buckets}}
+- {{key}} : {{doc_count}}
+{{/ctx.results.0.aggregations.endpoint.buckets}}
+
+Error Types:
+{{#ctx.results.0.aggregations.errors.buckets}}
+- {{key}} : {{doc_count}}
+{{/ctx.results.0.aggregations.errors.buckets}}
+
+Time Window:
+{{ctx.periodStart}} → {{ctx.periodEnd}}```
+
 
