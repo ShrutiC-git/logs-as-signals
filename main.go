@@ -45,16 +45,16 @@ func sendToOpenSearch(data map[string]interface{}) {
 }
 
 // Dependency simulator
-func callExternalService() (string, int) {
+func callPaymentService() (string, int) {
 	retries := 0
 
 	if atomic.LoadInt32(&failureMode) == 1 {
 		// simulate retries and delay
 		for retries < 2 {
-			time.Sleep(1 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 			retries++
 		}
-		return "Service Unavailable", retries
+		return "Payment Service Unavailable", retries
 	}
 	time.Sleep(50 * time.Millisecond)
 	return "", retries
@@ -99,7 +99,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func checkoutHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
-	errorType, retries := callExternalService()
+	errorType, retries := callPaymentService()
 
 	latency := time.Since(start).Milliseconds()
 
@@ -107,9 +107,12 @@ func checkoutHandler(w http.ResponseWriter, r *http.Request) {
 		"service":     "checkout",
 		"endpoint":    "/checkout",
 		"latency_ms":  latency,
-		"error":       errorType,
 		"retry_count": retries,
 		"status":      getStatus(errorType),
+	}
+
+	if errorType != "" {
+		data["error"] = errorType
 	}
 
 	logJson(data)

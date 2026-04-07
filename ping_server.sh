@@ -1,20 +1,31 @@
-echo "Sending success traffic..."
+#!/bin/bash
 
-for i in {1..21}; do
-    curl -s http://localhost:8080/checkout > /dev/null
-    sleep 0.2
+BASE_URL="http://localhost:8080"
+
+echo "Sending normal traffic..."
+
+for i in {1..10}; do
+  curl -s -o /dev/null -w "%{http_code}" $BASE_URL/checkout
+  echo
+  sleep 0.2
 done
 
 echo "Injecting failure..."
+curl -s $BASE_URL/toggle-failure > /dev/null
 
-curl -s http://localhost:8080/toggle-failure
-sleep 0.5
+echo "Sending failure traffic... (toggle recovery to stop)"
 
-echo "Sending failure traffic..."
+while true; do
+  status=$(curl -s -o /dev/null -w "%{http_code}" $BASE_URL/checkout)
 
-for i in {1..11}; do
-    curl -s http://localhost:8080/checkout > /dev/null
-    sleep 0.2
+  echo "Request status: $status"
+
+  if [ "$status" == "200" ]; then
+    echo "Recovery detected. Stopping."
+    break
+  fi
+
+  sleep 0.2
 done
 
-echo "Done — check alerts"
+echo "Done"
