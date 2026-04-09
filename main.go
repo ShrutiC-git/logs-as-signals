@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -49,13 +50,16 @@ func callPaymentService() (string, int) {
 	retries := 0
 
 	if atomic.LoadInt32(&failureMode) == 1 {
-		// simulate retries and delay
-		for retries < 2 {
-			time.Sleep(100 * time.Millisecond)
-			retries++
+		// 50% failure rate
+		if rand.Intn(2) == 0 {
+			for retries < 2 {
+				time.Sleep(100 * time.Millisecond)
+				retries++
+			}
+			return "Payment Service Unavailable", retries
 		}
-		return "Payment Service Unavailable", retries
 	}
+
 	time.Sleep(50 * time.Millisecond)
 	return "", retries
 }
@@ -75,11 +79,11 @@ func toggleFailuremode(w http.ResponseWriter, r *http.Request) {
 
 	msg := fmt.Sprintf("failureMode=%v\n", newval == 1)
 
-	logJson(map[string]interface{}{
-		"service": "checkout",
-		"event":   "toggle_failure",
-		"enabled": newval == 1,
-	})
+	// logJson(map[string]interface{}{
+	// 	"service": "checkout",
+	// 	"event":   "toggle_failure",
+	// 	"enabled": newval == 1,
+	// })
 
 	sendToOpenSearch(map[string]interface{}{
 		"service": "checkout",
@@ -112,10 +116,12 @@ func checkoutHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if errorType != "" {
-		data["error"] = errorType
+			data["error"] = errorType
+			data["error_type"] = "DEPENDENCY_FAILURE"
+			data["dependency"] = "payment-service"
 	}
 
-	logJson(data)
+	// logJson(data)
 	sendToOpenSearch(data)
 
 	if errorType != "" {

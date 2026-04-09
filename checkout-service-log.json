@@ -1,0 +1,11 @@
+{
+    "service": "checkout",
+    "endpoint": "/checkout",
+    "status": "error",
+    "latency_ms": 201,
+    "retry_count": 2,
+    "dependency": "payment-service",
+    "error": "Payment Service Unavailable",
+    "error_type": "DEPENDENCY_FAILURE",
+    "@timestamp": "2026-04-09T10:00:05Z"
+}
