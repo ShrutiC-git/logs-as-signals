@@ -14,16 +14,6 @@ import (
 
 var failureMode int32 = 0
 
-// Structured logger
-func logJson(data map[string]interface{}) {
-	data["@timestamp"] = time.Now().Format(time.RFC3339)
-	bytes, err := json.Marshal(data)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(string(bytes))
-}
-
 // Send logs to OpenSearch
 func sendToOpenSearch(data map[string]interface{}) {
 	data["@timestamp"] = time.Now().Format(time.RFC3339)
@@ -33,6 +23,7 @@ func sendToOpenSearch(data map[string]interface{}) {
 		return
 	}
 	resp, error := http.Post(
+		// send data to OpenSearch index "logs-demo"
 		"http://localhost:9200/logs-demo/_doc",
 		"application/json",
 		bytes.NewBuffer(jsonData),
@@ -79,12 +70,6 @@ func toggleFailuremode(w http.ResponseWriter, r *http.Request) {
 
 	msg := fmt.Sprintf("failureMode=%v\n", newval == 1)
 
-	// logJson(map[string]interface{}{
-	// 	"service": "checkout",
-	// 	"event":   "toggle_failure",
-	// 	"enabled": newval == 1,
-	// })
-
 	sendToOpenSearch(map[string]interface{}{
 		"service": "checkout",
 		"event":   "toggle_failure",
@@ -103,10 +88,12 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func checkoutHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
+	// Simulate 50% error rate in payment service with retries
 	errorType, retries := callPaymentService()
 
 	latency := time.Since(start).Milliseconds()
 
+	// Structure log data
 	data := map[string]interface{}{
 		"service":     "checkout",
 		"endpoint":    "/checkout",
@@ -117,11 +104,10 @@ func checkoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	if errorType != "" {
 			data["error"] = errorType
-			data["error_type"] = "DEPENDENCY_FAILURE"
+			data["error_type"] = "Dependency Unavailable"
 			data["dependency"] = "payment-service"
 	}
 
-	// logJson(data)
 	sendToOpenSearch(data)
 
 	if errorType != "" {

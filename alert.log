@@ -1,0 +1,16 @@
+2026/04/09 18:03:20 🚨 ALERT RECEIVED
+2026/04/09 18:03:20 Monitor: Dependency Failure Monitor
+
+Total Requests:
+50
+
+Status Breakdown:
+- success : 30
+- error : 20
+
+Dependency Failures:
+- payment-service :
+     Dependency Unavailable : 20
+
+Time Window:
+2026-04-09T12:32:19.632Z → 2026-04-09T12:33:19.632Z 

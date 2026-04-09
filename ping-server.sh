@@ -12,9 +12,7 @@ done
 echo "Injecting failure (50% of requests will now fail)..."
 curl -s "$BASE_URL/toggle-failure" > /dev/null
 
-echo "Sending failure traffic... (toggle recovery to stop)"
-
-echo "Sending mixed traffic (some successes, some failures)..."
+echo "Sending mixed traffic (~50% failure)..."
 
 for i in {1..40}; do
   status=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/checkout")
