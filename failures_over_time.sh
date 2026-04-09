@@ -3,14 +3,30 @@ curl -X POST "localhost:9200/logs-demo/_search?pretty" \
 -d '{
     "size": 0,
     "query": {
-        "range": {
-            "@timestamp": {
-                "from": "now-1m",
-                "to": null,
-                "include_lower": true,
-                "include_upper": true,
-                "boost": 1
-            }
+        "bool": {
+            "filter": [
+                {
+                    "range": {
+                        "@timestamp": {
+                            "from": "now-1m",
+                            "to": null,
+                            "include_lower": true,
+                            "include_upper": true,
+                            "boost": 1
+                        }
+                    }
+                },
+                {
+                    "term": {
+                        "service": {
+                            "value": "checkout",
+                            "boost": 1
+                        }
+                    }
+                }
+            ],
+            "adjust_pure_negative": true,
+            "boost": 1
         }
     },
     "aggregations": {
@@ -36,9 +52,9 @@ curl -X POST "localhost:9200/logs-demo/_search?pretty" \
                 ]
             }
         },
-        "endpoint": {
+        "by_dependency": {
             "terms": {
-                "field": "endpoint",
+                "field": "dependency",
                 "size": 10,
                 "min_doc_count": 1,
                 "shard_min_doc_count": 0,
@@ -51,23 +67,25 @@ curl -X POST "localhost:9200/logs-demo/_search?pretty" \
                         "_key": "asc"
                     }
                 ]
-            }
-        },
-        "errors": {
-            "terms": {
-                "field": "error",
-                "size": 10,
-                "min_doc_count": 1,
-                "shard_min_doc_count": 0,
-                "show_term_doc_count_error": false,
-                "order": [
-                    {
-                        "_count": "desc"
-                    },
-                    {
-                        "_key": "asc"
+            },
+            "aggregations": {
+                "errors": {
+                    "terms": {
+                        "field": "error_type",
+                        "size": 10,
+                        "min_doc_count": 1,
+                        "shard_min_doc_count": 0,
+                        "show_term_doc_count_error": false,
+                        "order": [
+                            {
+                                "_count": "desc"
+                            },
+                            {
+                                "_key": "asc"
+                            }
+                        ]
                     }
-                ]
+                }
             }
         }
     }
