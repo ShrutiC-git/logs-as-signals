@@ -8,8 +8,7 @@ curl -X PUT "http://localhost:9200/logs-demo" \
         "service":      { "type": "keyword" },        // e.g. "checkout"
         "endpoint":     { "type": "keyword" },        // e.g. "/checkout"
         "dependency":   { "type": "keyword" },        // e.g. "payment-service"
-        "error":        { "type": "keyword" },        // e.g. "Payment Service Unavailable"
-        "error_type":   { "type": "keyword" },        // e.g. "DEPENDENCY_FAILURE"
+        "error_type":   { "type": "keyword" },        // e.g. "dependency_payment_service_down"
         "status":       { "type": "keyword" },        // e.g. "success" / "error"
         "region":       { "type": "keyword" },        // e.g. "eu-west-1" (optional but nice)
         "latency_ms":   { "type": "integer" },        // e.g. 120

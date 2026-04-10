@@ -37,7 +37,7 @@ func sendToOpenSearch(data map[string]interface{}) {
 }
 
 // Dependency simulator
-func callPaymentService() (string, int) {
+func callPaymentService() (string, int, string) {
 	retries := 0
 
 	if atomic.LoadInt32(&failureMode) == 1 {
@@ -47,12 +47,12 @@ func callPaymentService() (string, int) {
 				time.Sleep(100 * time.Millisecond)
 				retries++
 			}
-			return "Payment Service Unavailable", retries
+			return "dependency_payment_service_down", retries, "payment-service"
 		}
 	}
 
 	time.Sleep(50 * time.Millisecond)
-	return "", retries
+	return "", retries, ""
 }
 
 // Helper to determine status based on error type
@@ -89,7 +89,7 @@ func checkoutHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
 	// Simulate 50% error rate in payment service with retries
-	errorType, retries := callPaymentService()
+	errorType, retries, dependency := callPaymentService()
 
 	latency := time.Since(start).Milliseconds()
 
@@ -97,15 +97,15 @@ func checkoutHandler(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"service":     "checkout",
 		"endpoint":    "/checkout",
+		"region":      "eu-west-1",
 		"latency_ms":  latency,
 		"retry_count": retries,
 		"status":      getStatus(errorType),
 	}
 
 	if errorType != "" {
-			data["error"] = errorType
-			data["error_type"] = "Dependency Unavailable"
-			data["dependency"] = "payment-service"
+		data["error_type"] = errorType
+		data["dependency"] = dependency
 	}
 
 	sendToOpenSearch(data)
